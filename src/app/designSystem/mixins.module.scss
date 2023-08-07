@@ -1,0 +1,23 @@
+
+
+
+$colour-timeless-white: #b7b7b7;
+$colour-lightest-grey: #5e5e5e;
+$colour-light-grey: #383838;
+$colour-dark-grey: #151516;
+$colour-darkest-grey: #131313;
+
+$line: 1px solid $colour-light-grey;
+
+@mixin semi-bold {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+:export {
+  colour-off-white: $colour-timeless-white;
+  colourLightestGrey: $colour-lightest-grey;
+  colourLightGrey: $colour-light-grey;
+  colourDarkGrey: $colour-dark-grey;
+  colourDarkestGrey: $colour-darkest-grey;
+}

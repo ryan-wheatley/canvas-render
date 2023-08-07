@@ -1,0 +1,19 @@
+@import "../../designSystem/mixins.module";
+
+
+.component {
+  min-width: 350px;
+  background: $colour-darkest-grey;
+  border-left: $line;
+  flex-shrink: 0;
+}
+
+.title {
+  display: flex;
+  border-bottom: $line;
+  height: 50px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 15px;
+  @include semi-bold;
+}

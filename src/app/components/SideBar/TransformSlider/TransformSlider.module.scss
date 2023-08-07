@@ -1,0 +1,55 @@
+@import "../../../designSystem/mixins.module";
+
+.component {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  display: flex;
+}
+
+.label {
+  display: flex;
+  width: 100px;
+  align-items: center;
+  justify-content: center;
+}
+
+.sliderRoot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  user-select: none;
+  touch-action: none;
+  width: 200px;
+  height: 20px;
+}
+
+.sliderTrack {
+  background-color: $colour-light-grey;
+  position: relative;
+  flex-grow: 1;
+  border-radius: 9999px;
+  height: 3px;
+}
+
+.sliderRange {
+  position: absolute;
+  background-color: $colour-lightest-grey;
+  border-radius: 9999px;
+  height: 100%;
+}
+
+.sliderThumb {
+  display: block;
+  width: 10px;
+  height: 10px;
+  background-color: $colour-lightest-grey;
+  box-shadow: 0 0 5px black;
+  border-radius: 10px;
+}
+.sliderThumb:hover {
+  background-color: $colour-light-grey ;
+}
+.sliderThumb:focus {
+  outline: none;
+  box-shadow: blue;
+}
