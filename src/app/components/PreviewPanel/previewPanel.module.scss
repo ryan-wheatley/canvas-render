@@ -1,0 +1,8 @@
+@import "../../designSystem/mixins.module";
+
+.component {
+  flex-grow: 1;
+  background: $colour-dark-grey;
+  display: flex;
+  flex-direction: column;
+}

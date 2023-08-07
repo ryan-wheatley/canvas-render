@@ -1,0 +1,7 @@
+@import "../../../designSystem/mixins.module";
+
+.component {
+  height: 200px;
+  border-top: $line;
+  background: $colour-darkest-grey;
+}
