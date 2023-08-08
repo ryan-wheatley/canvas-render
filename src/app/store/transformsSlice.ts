@@ -1,5 +1,5 @@
 import { StateCreator } from "zustand";
-import { StoreState } from "@/app/store/store";
+import { StoreState } from "./store";
 
 export type TransformRecord = Record<string, number>;
 
