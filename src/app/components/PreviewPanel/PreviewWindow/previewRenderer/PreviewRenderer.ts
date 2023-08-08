@@ -7,13 +7,8 @@ import {
   Texture,
 } from "pixi.js";
 import styles from "../../../../designSystem/mixins.module.scss";
-import { isPositionInsideNode } from "next/dist/server/typescript/utils";
-import { useEffect } from "react";
-import { useStore } from "@/app/store/store";
-import dynamic from "next/dynamic";
-import { Simulate } from "react-dom/test-utils";
-import mouseMove = Simulate.mouseMove;
-import { rotate } from "next/dist/server/lib/squoosh/impl";
+import { useStore } from "../../../../store/store";
+
 class PreviewRenderer {
   app: Application;
   latestTransforms = {
@@ -30,7 +25,20 @@ class PreviewRenderer {
     video: Sprite | undefined;
     video2: Sprite | undefined;
     controls: Container | undefined;
+    scaleControls: {
+      tl: Graphics;
+      tr: Graphics;
+      bl: Graphics;
+      br: Graphics;
+    };
   };
+  initialPosition = {
+    position: { x: 0, y: 0 },
+    rotation: 0,
+  };
+  pointerOrigin = { x: 0, y: 0 };
+  moving = false;
+  scaling = false;
 
   constructor(domContainer: HTMLDivElement) {
     this.dimensions = {
@@ -42,6 +50,12 @@ class PreviewRenderer {
       video: undefined,
       video2: undefined,
       controls: undefined,
+      scaleControls: {
+        tl: this.createScaleControl(),
+        tr: new Graphics(),
+        bl: new Graphics(),
+        br: new Graphics(),
+      },
     };
     this.app = new Application({
       antialias: true,
@@ -53,18 +67,45 @@ class PreviewRenderer {
     });
     this.domContainer = domContainer;
     this.createVideoElement();
-    this.contents.video = this.createVideo(this.createVideoElement());
     this.contents.video2 = this.createVideo(this.createVideoElement());
     this.app.ticker.add(this.update);
     domContainer.appendChild(this.app.view as any);
     this.app.stage.addChild(this.contents.background);
     this.contents.controls = this.createControlsPOC();
-    this.app.stage.addChild(
-      this.contents.video2,
-      this.contents.video,
-      this.createPreviewBorder(),
-      this.contents.controls,
-    );
+    this.app.stage.eventMode = "dynamic";
+    this.app.stage.on("globalpointermove", (e: FederatedPointerEvent) => {
+      const deltaX = this.pointerOrigin.x - e.x;
+      const deltaY = this.pointerOrigin.y - e.y;
+      if (this.moving) {
+        useStore
+          .getState()
+          .updateTransform(
+            "x",
+            this.initialPosition.position.x - (deltaX / 300) * 50,
+          );
+
+        useStore
+          .getState()
+          .updateTransform(
+            "y",
+            this.initialPosition.position.y - (deltaY / 300) * 50,
+          );
+      }
+
+      if (this.scaling) {
+        useStore
+          .getState()
+          .updateTransform(
+            "scaleX",
+            this.initialPosition.position.x + deltaX / 50,
+          );
+      }
+    });
+
+    this.app.stage.on("pointerup", (exports: FederatedPointerEvent) => {
+      this.moving = false;
+      this.scaling = false;
+    });
   }
 
   createPreviewBackground() {
@@ -99,6 +140,8 @@ class PreviewRenderer {
   };
 
   updateLatestTransforms() {
+    // so when I update the height, offset the position
+
     const transforms = useStore.getState().transforms;
     const x =
       this.contents.background.x + this.scaleAboutZero(transforms["x"]) * 300;
@@ -113,22 +156,28 @@ class PreviewRenderer {
         y: this.scaleAboutZero(transforms["skewY"]) / 2,
       },
       height: (this.contents.background.height * transforms["scaleY"]) / 50,
-      width: (this.contents.background.width * transforms["scaleX"]) / 50,
+      width: (50 * 16 * transforms["scaleX"]) / 50,
     };
   }
 
   private updateVideoTransforms() {
     if (this.contents.video) {
-      const transforms = useStore.getState().transforms;
-
-      this.contents.video.position = this.latestTransforms.position;
-
+      this.contents.video.position = {
+        x:
+          this.latestTransforms.position.x +
+          (this.domContainer.clientWidth - 16 * 50) / 2 +
+          10,
+        y:
+          this.latestTransforms.position.y +
+          (this.domContainer.clientHeight - 9 * 50) / 2 +
+          10,
+      };
       this.contents.video.height = this.latestTransforms.height;
       this.contents.video.width = this.latestTransforms.width;
-
       this.contents.video.skew = this.latestTransforms.skew;
-
       this.contents.video.angle = this.latestTransforms.angle;
+      this.contents.video.zIndex = 0;
+      this.app.stage.sortableChildren = true;
     }
   }
 
@@ -141,10 +190,17 @@ class PreviewRenderer {
     const videoSprite = new Sprite(texture);
     videoSprite.width = this.contents.background.width;
     videoSprite.height = this.contents.background.height;
-    videoSprite.position = this.centerObjectInPreview(
-      videoSprite.width,
-      videoSprite.height,
-    );
+
+    videoSprite.eventMode = "dynamic";
+    videoSprite.zIndex = 0;
+    videoSprite.on("pointerdown", (e: FederatedPointerEvent) => {
+      this.initialPosition.position = {
+        x: useStore.getState().transforms["x"],
+        y: useStore.getState().transforms["y"],
+      };
+      this.pointerOrigin = { x: e.x, y: e.y };
+      this.moving = true;
+    });
 
     return videoSprite;
   }
@@ -153,28 +209,78 @@ class PreviewRenderer {
     const container = new Container();
     container.position = this.contents.background.position;
     const line = new Graphics();
-    line.lineStyle(2, styles.colourLightestGrey, 1);
+    line.lineStyle(2, styles.colourOffWhite, 1);
     line.lineTo(this.contents.background.width, 0);
     line.lineTo(
       this.contents.background.width,
       this.contents.background.height,
     );
-    container.addChild(line);
+    line.lineTo(0, this.contents.background.height);
+    line.lineTo(0, 0);
+
+    const shadowLine = new Graphics();
+    shadowLine.lineStyle(10, styles.colourDarkGrey, 0.5);
+    shadowLine.lineTo(this.contents.background.width, 0);
+    shadowLine.lineTo(
+      this.contents.background.width,
+      this.contents.background.height,
+    );
+    shadowLine.lineTo(0, this.contents.background.height);
+    shadowLine.lineTo(0, 0);
+
+    container.addChild(this.createVideo(this.createVideoElement()));
+
+    this.app.stage.addChild(container, this.createPreviewBorder());
+
+    container.addChild(shadowLine, line);
+    container.pivot.set(container.width / 2, container.height / 2);
+
     return container;
+  }
+
+  createScaleControl() {
+    const square = new Graphics();
+    square.beginFill(styles.colourOffWhite);
+    square.drawRect(0, 0, 10, 10);
+    square.endFill();
+    square.eventMode = "dynamic";
+    square.on("pointerdown", (e: FederatedPointerEvent) => {
+      this.initialPosition.position = {
+        x: useStore.getState().transforms["scaleX"],
+        y: useStore.getState().transforms["scaleY"],
+      };
+      this.pointerOrigin = { x: e.x, y: e.y };
+      this.scaling = true;
+    });
+
+    return square;
   }
 
   updateContainerPOC() {
     if (!this.contents.controls) return;
-    this.contents.controls.position = this.latestTransforms.position;
+    this.contents.controls.position = {
+      x: this.latestTransforms.position.x - 10,
+      y: this.latestTransforms.position.y - 10,
+    };
+    this.contents.controls.position.x += (50 * 16 + 30) / 2;
+    this.contents.controls.position.y += (50 * 9 + 30) / 2;
     this.contents.controls.angle = this.latestTransforms.angle;
     this.contents.controls.skew = this.latestTransforms.skew;
-    this.contents.controls.height = this.latestTransforms.height;
-    this.contents.controls.width = this.latestTransforms.width;
+    this.contents.controls.height = this.latestTransforms.height + 30;
+    this.contents.controls.width = this.latestTransforms.width + 30;
+    this.contents.scaleControls.tl.scale.x =
+      (50 * 16) / this.contents.controls.width;
+    this.contents.scaleControls.tl.scale.y =
+      (50 * 9) / this.contents.controls.height;
+    this.contents.scaleControls.tl.x = -5;
+    this.contents.scaleControls.tl.y = -5;
   }
+
+  updateScaleControls() {}
 
   createPreviewBorder() {
     const rectAndHole = new Graphics();
-    rectAndHole.beginFill(styles.colourDarkGrey);
+    rectAndHole.beginFill(styles.colourDarkGrey, 0.8);
     rectAndHole.drawRect(
       0,
       0,
@@ -190,7 +296,8 @@ class PreviewRenderer {
     );
     rectAndHole.endHole();
     rectAndHole.endFill();
-    rectAndHole.zIndex = 100;
+
+    this.app.stage.sortChildren();
     return rectAndHole;
   }
 
@@ -213,4 +320,14 @@ class PreviewRenderer {
     this.app.destroy(true);
   }
 }
+
 export default PreviewRenderer;
+
+// on mouse down, on corner piece (top right)
+// so one handler for that RESIZING
+
+// on mouse down, on video
+// one handler for MOVING
+
+// on mousedown, on rotation handle
+// set original position, on move get the delta, set the state to original position plus delta
