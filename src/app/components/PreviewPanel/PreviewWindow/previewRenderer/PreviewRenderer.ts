@@ -66,11 +66,14 @@ class PreviewRenderer {
       autoDensity: true,
     });
     this.domContainer = domContainer;
-    this.createVideoElement();
-    this.contents.video2 = this.createVideo(this.createVideoElement());
+    this.contents.video2 = this.createVideo(
+      this.createVideoElement("/bus.mp4"),
+      false,
+    );
     this.app.ticker.add(this.update);
     domContainer.appendChild(this.app.view as any);
     this.app.stage.addChild(this.contents.background);
+    this.app.stage.addChild(this.contents.video2);
     this.contents.controls = this.createControlsPOC();
     this.app.stage.eventMode = "dynamic";
     this.app.stage.on("globalpointermove", (e: FederatedPointerEvent) => {
@@ -185,7 +188,7 @@ class PreviewRenderer {
     return value / 50 - 1;
   }
 
-  createVideo(element: HTMLVideoElement): Sprite {
+  createVideo(element: HTMLVideoElement, movable = true): Sprite {
     const texture = Texture.from(element);
     const videoSprite = new Sprite(texture);
     videoSprite.width = this.contents.background.width;
@@ -193,6 +196,13 @@ class PreviewRenderer {
 
     videoSprite.eventMode = "dynamic";
     videoSprite.zIndex = 0;
+    if (!movable) {
+      videoSprite.position = this.centerObjectInPreview(
+        videoSprite.width,
+        videoSprite.height,
+      );
+      return videoSprite;
+    }
     videoSprite.on("pointerdown", (e: FederatedPointerEvent) => {
       this.initialPosition.position = {
         x: useStore.getState().transforms["x"],
@@ -228,7 +238,7 @@ class PreviewRenderer {
     shadowLine.lineTo(0, this.contents.background.height);
     shadowLine.lineTo(0, 0);
 
-    container.addChild(this.createVideo(this.createVideoElement()));
+    container.addChild(this.createVideo(this.createVideoElement("./dog.mp4")));
 
     this.app.stage.addChild(container, this.createPreviewBorder());
 
@@ -280,7 +290,7 @@ class PreviewRenderer {
 
   createPreviewBorder() {
     const rectAndHole = new Graphics();
-    rectAndHole.beginFill(styles.colourDarkGrey, 0.8);
+    rectAndHole.beginFill(styles.colourDarkGrey, 1);
     rectAndHole.drawRect(
       0,
       0,
@@ -301,13 +311,14 @@ class PreviewRenderer {
     return rectAndHole;
   }
 
-  createVideoElement() {
+  createVideoElement(src: string) {
     // Assuming you have an existing PixiJS application and stage setup
     const videoElement = document.createElement("video");
 
     const url =
       "https://transform-demo-videos.s3.eu-west-2.amazonaws.com/Jack+Russell.mp4";
-    videoElement.src = "/dog.mp4";
+
+    videoElement.src = src;
     videoElement.loop = true;
     videoElement.autoplay = true;
     videoElement.muted = true; // Ensure video is muted to avoid potential browser restrictions on autoplay with sound
