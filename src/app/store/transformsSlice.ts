@@ -21,13 +21,13 @@ export const createTransformsSlice: StateCreator<
   TransformsSlice
 > = (set, get) => ({
   transforms: {
-    x: 50,
+    x: 60,
     y: 50,
     skewX: 50,
     skewY: 50,
-    scaleX: 50,
-    scaleY: 50,
-    angle: 50,
+    scaleX: 25,
+    scaleY: 25,
+    angle: 60,
   },
   getTransformValue: (id: string) => {
     return get().transforms[id];
